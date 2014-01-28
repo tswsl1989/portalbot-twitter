@@ -71,7 +71,7 @@ except ImportError:
     raise callbacks.Error('You need the python-oauth2 library.')
 
 try:
-    import twitter
+    from . import twitter
 except ImportError:
     raise callbacks.Error('You need the python-twitter library.')
 except Exception as e:
@@ -235,7 +235,7 @@ class Twitter(callbacks.Plugin):
                 except KeyError:
                     pass
             return text # leave as is
-        return re.sub("&#?\w+;", fixup, text)
+        return re.sub("&#?\w+;", fixup, text).encode('utf-8')
 
     def __call__(self, irc, msg):
         super(Twitter, self).__call__(irc, msg)
@@ -270,8 +270,8 @@ class Twitter(callbacks.Plugin):
                     tweets = []
                     if self.registryValue('announce.timeline', channel):
                         tweets.extend(fetch(
-                            functools.partial(api.GetFriendsTimeline,
-                                              retweets=retweets),
+                            functools.partial(api.GetHomeTimeline,
+                                              exclude_replies=(not retweets)),
                             maxIds, 'timeline'))
                     if self.registryValue('announce.mentions', channel):
                         tweets.extend(fetch(api.GetReplies,
@@ -595,9 +595,10 @@ class Twitter(callbacks.Plugin):
                         'an op, try with another channel.'))
             return
         try:
-            follow = api.CreateFriendship(user)
-        except twitter.TwitterError:
+            follow = api.CreateFriendship(screen_name=user)
+        except twitter.TwitterError as e:
             irc.error(_('An error occurred'))
+	    self.log.error('TwitterError: %s' % e)
             return
 
         irc.replySuccess()
@@ -618,7 +619,7 @@ class Twitter(callbacks.Plugin):
                         'an op, try with another channel.'))
             return
         try:
-            unfollow = api.DestroyFriendship(user)
+            unfollow = api.DestroyFriendship(screen_name=user)
         except twitter.TwitterError:
             irc.error(_('An error occurred'))
             return
