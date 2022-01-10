@@ -72,17 +72,12 @@ except ImportError:
 
 try:
     from . import twitter
-except ImportError:
+except ImportError as e:
+    print(e)
     raise callbacks.Error('You need the python-twitter library.')
 except Exception as e:
     raise callbacks.Error('Unknown exception importing twitter: %r' % e)
 reload(twitter)
-if not hasattr(twitter, '__version__') or \
-        twitter.__version__.split('.') < ['0', '8', '0']:
-    raise ImportError('You current version of python-twitter is to old, '
-                      'you need at least version 0.8.0, because older '
-                      'versions do not support OAuth authentication.')
-
 
 class ExtendedApi(twitter.Api):
     """Api with retweet support."""
@@ -196,8 +191,7 @@ class Twitter(callbacks.Plugin):
         api = ExtendedApi(consumer_key=self.registryValue('consumer.key'),
                 consumer_secret=self.registryValue('consumer.secret'),
                 access_token_key=key,
-                access_token_secret=secret,
-                base_url=url)
+                access_token_secret=secret)
         self._apis[channel] = api
         return api
 
@@ -270,8 +264,7 @@ class Twitter(callbacks.Plugin):
                     tweets = []
                     if self.registryValue('announce.timeline', channel):
                         tweets.extend(fetch(
-                            functools.partial(api.GetHomeTimeline,
-                                              exclude_replies=(not retweets)),
+                            functools.partial(api.GetHomeTimeline, exclude_replies=(not retweets)),
                             maxIds, 'timeline'))
                     if self.registryValue('announce.mentions', channel):
                         tweets.extend(fetch(api.GetReplies,
@@ -302,6 +295,7 @@ class Twitter(callbacks.Plugin):
 
                 replies = map(self._unescape, replies)
                 replies = map(expandLinks, replies)
+                replies = map(lambda x: x.decode("utf-8"), replies)
                 if self.registryValue('announce.oneline', channel):
                     irc.replies(replies, prefixNick=False, joiner=' | ',
                             to=channel)
@@ -334,7 +328,7 @@ class Twitter(callbacks.Plugin):
         reply = utils.str.format("%L", ['%s (%s)' % (x.name, x.screen_name)
                                         for x in following])
         reply = self._unescape(reply)
-        irc.reply(reply)
+        irc.reply(reply.decode("utf-8"))
     following = wrap(following, ['channel',
                                      optional('somethingWithoutSpaces')])
 
@@ -354,7 +348,7 @@ class Twitter(callbacks.Plugin):
         reply = utils.str.format("%L", ['%s (%s)' % (x.name, x.screen_name)
                                         for x in followers])
         reply = self._unescape(reply)
-        irc.reply(reply)
+        irc.reply(reply.decode("utf-8"))
     followers = wrap(followers, ['channel'])
 
     @internationalizeDocstring
@@ -472,7 +466,7 @@ class Twitter(callbacks.Plugin):
                                            max_id=optlist['max'],
                                            count=optlist['count'],
                                            include_rts=not optlist['noretweet'])
-        except twitter.TwitterError:
+        except twitter.TwitterError as e:
             irc.error(_('This user protects his tweets; you need to fetch '
                         'them from a channel whose associated account can '
                         'fetch this timeline.'))
@@ -484,7 +478,7 @@ class Twitter(callbacks.Plugin):
             reply = ' | '.join([expandLinks(x.text) for x in timeline])
 
         reply = self._unescape(reply)
-        irc.reply(reply)
+        irc.reply(reply.decode("utf-8"))
     timeline = wrap(timeline, ['channel',
                                getopts({'since': 'int',
                                         'max': 'int',
@@ -598,7 +592,7 @@ class Twitter(callbacks.Plugin):
             follow = api.CreateFriendship(screen_name=user)
         except twitter.TwitterError as e:
             irc.error(_('An error occurred'))
-	    self.log.error('TwitterError: %s' % e)
+            self.log.error('TwitterError: %s' % e)
             return
 
         irc.replySuccess()

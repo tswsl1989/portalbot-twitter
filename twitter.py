@@ -24,18 +24,16 @@ __version__ = '1.0'
 
 import calendar
 import datetime
-import httplib
+import http.client as httplib
 import os
-import rfc822
 import sys
 import tempfile
 import textwrap
 import time
-import urllib
-import urllib2
-import urlparse
+import urllib.request as urllib2
+import urllib.parse as urlparse
 import gzip
-import StringIO
+from io import StringIO
 
 try:
   # Python >= 2.6
@@ -49,13 +47,10 @@ except ImportError:
       # Google App Engine
       from django.utils import simplejson
     except ImportError:
-      raise ImportError, "Unable to load a json library"
+      raise ImportError("Unable to load a json library")
 
 # parse_qsl moved to urlparse module in v2.6
-try:
-  from urlparse import parse_qsl, parse_qs
-except ImportError:
-  from cgi import parse_qsl, parse_qs
+from urllib.parse import parse_qsl, parse_qs
 
 try:
   from hashlib import md5
@@ -65,7 +60,7 @@ except ImportError:
 import oauth2 as oauth
 
 
-CHARACTER_LIMIT = 140
+CHARACTER_LIMIT = 280
 
 # A singleton representing a lazily instantiated FileCache.
 DEFAULT_CACHE = object()
@@ -245,7 +240,7 @@ class Status(object):
     Returns:
       The time this status message was posted, in seconds since the epoch.
     '''
-    return calendar.timegm(rfc822.parsedate(self.created_at))
+    return calendar.timegm(email.util.parsedate(self.created_at))
 
   created_at_in_seconds = property(GetCreatedAtInSeconds,
                                    doc="The time this status message was "
@@ -412,7 +407,7 @@ class Status(object):
       A human readable string representing the posting time
     '''
     fudge = 1.25
-    delta  = long(self.now) - long(self.created_at_in_seconds)
+    delta  = int(self.now) - int(self.created_at_in_seconds)
 
     if delta < (1 * fudge):
       return 'about a second ago'
@@ -1967,7 +1962,7 @@ class DirectMessage(object):
     Returns:
       The time this direct message was posted, in seconds since the epoch.
     '''
-    return calendar.timegm(rfc822.parsedate(self.created_at))
+    return calendar.timegm(email.util.parsedate(self.created_at))
 
   created_at_in_seconds = property(GetCreatedAtInSeconds,
                                    doc="The time this direct message was "
@@ -2371,10 +2366,6 @@ class Api(object):
 
     if consumer_key is not None and (access_token_key is None or
                                      access_token_secret is None):
-      print >> sys.stderr, 'Twitter now requires an oAuth Access Token for API calls.'
-      print >> sys.stderr, 'If your using this library from a command line utility, please'
-      print >> sys.stderr, 'run the the included get_access_token.py tool to generate one.'
-
       raise TwitterError('Twitter requires oAuth Access Token for all API access')
 
     self.SetCredentials(consumer_key, consumer_secret, access_token_key, access_token_secret)
@@ -2479,13 +2470,13 @@ class Api(object):
 
     if since_id:
       try:
-        parameters['since_id'] = long(since_id)
+        parameters['since_id'] = int(since_id)
       except:
         raise TwitterError("since_id must be an integer")
 
     if max_id:
       try:
-        parameters['max_id'] = long(max_id)
+        parameters['max_id'] = int(max_id)
       except:
         raise TwitterError("max_id must be an integer")
 
@@ -2684,12 +2675,12 @@ class Api(object):
       parameters['count'] = count
     if since_id:
       try:
-        parameters['since_id'] = long(since_id)
+        parameters['since_id'] = int(since_id)
       except ValueError:
         raise TwitterError("'since_id' must be an integer")
     if max_id:
       try:
-        parameters['max_id'] = long(max_id)
+        parameters['max_id'] = int(max_id)
       except ValueError:
         raise TwitterError("'max_id' must be an integer")
     if trim_user:
@@ -2766,13 +2757,13 @@ class Api(object):
 
     if since_id:
       try:
-        parameters['since_id'] = long(since_id)
+        parameters['since_id'] = int(since_id)
       except:
         raise TwitterError("since_id must be an integer")
 
     if max_id:
       try:
-        parameters['max_id'] = long(max_id)
+        parameters['max_id'] = int(max_id)
       except:
         raise TwitterError("max_id must be an integer")
 
@@ -2833,7 +2824,7 @@ class Api(object):
     parameters = {}
 
     try:
-      parameters['id'] = long(id)
+      parameters['id'] = int(id)
     except ValueError:
       raise TwitterError("'id' must be an integer.")
 
@@ -2865,7 +2856,7 @@ class Api(object):
       raise TwitterError("API must be authenticated.")
 
     try:
-      post_data = {'id': long(id)}
+      post_data = {'id': int(id)}
     except:
       raise TwitterError("id must be an integer")
     url  = '%s/statuses/destroy/%s.json' % (self.base_url, id)
@@ -3765,13 +3756,13 @@ class Api(object):
 
     if since_id:
       try:
-        parameters['since_id'] = long(since_id)
+        parameters['since_id'] = int(since_id)
       except:
         raise TwitterError("since_id must be an integer")
 
     if max_id:
       try:
-        parameters['max_id'] = long(max_id)
+        parameters['max_id'] = int(max_id)
       except:
         raise TwitterError("max_id must be an integer")
 
@@ -3843,12 +3834,12 @@ class Api(object):
         raise TwitterError("count must be an integer")
     if since_id:
       try:
-        parameters['since_id'] = long(since_id)
+        parameters['since_id'] = int(since_id)
       except:
         raise TwitterError("since_id must be an integer")
     if max_id:
       try:
-        parameters['max_id'] = long(max_id)
+        parameters['max_id'] = int(max_id)
       except:
         raise TwitterError("max_id must be an integer")
     if trim_user:
@@ -3921,14 +3912,14 @@ class Api(object):
     data = {}
     if list_id:
       try:
-        data['list_id']= long(list_id)
+        data['list_id']= int(list_id)
       except:
         raise TwitterError("list_id must be an integer")
     elif slug:
       data['slug'] = slug
       if owner_id:
         try:
-          data['owner_id'] = long(owner_id)
+          data['owner_id'] = int(owner_id)
         except:
           raise TwitterError("owner_id must be an integer")
       elif owner_screen_name:
@@ -3971,14 +3962,14 @@ class Api(object):
     data = {}
     if list_id:
       try:
-        data['list_id']= long(list_id)
+        data['list_id']= int(list_id)
       except:
         raise TwitterError("list_id must be an integer")
     elif slug:
       data['slug'] = slug
       if owner_id:
         try:
-          data['owner_id'] = long(owner_id)
+          data['owner_id'] = int(owner_id)
         except:
           raise TwitterError("owner_id must be an integer")
       elif owner_screen_name:
@@ -4020,14 +4011,14 @@ class Api(object):
     data = {}
     if list_id:
       try:
-        data['list_id']= long(list_id)
+        data['list_id']= int(list_id)
       except:
         raise TwitterError("list_id must be an integer")
     elif slug:
       data['slug'] = slug
       if owner_id:
         try:
-          data['owner_id'] = long(owner_id)
+          data['owner_id'] = int(owner_id)
         except:
           raise TwitterError("owner_id must be an integer")
       elif owner_screen_name:
@@ -4083,7 +4074,7 @@ class Api(object):
 
     if user_id is not None:
       try:
-        parameters['user_id'] = long(user_id)
+        parameters['user_id'] = int(user_id)
       except:
         raise TwitterError('user_id must be an integer')
     elif screen_name is not None:
@@ -4127,7 +4118,7 @@ class Api(object):
     parameters = {}
     if user_id is not None:
       try:
-        parameters['user_id'] = long(user_id)
+        parameters['user_id'] = int(user_id)
       except:
         raise TwitterError('user_id must be an integer')
     elif screen_name is not None:
@@ -4163,7 +4154,7 @@ class Api(object):
     url = '%s/account/verify_credentials.json' % self.base_url
     try:
       json = self._FetchUrl(url, no_cache=True)
-    except urllib2.HTTPError, http_error:
+    except urllib2.HTTPError as http_error:
       if http_error.code == httplib.UNAUTHORIZED:
         return None
       else:
@@ -4281,7 +4272,7 @@ class Api(object):
 
     if reset_time:
       # put the reset time into a datetime object
-      reset = datetime.datetime(*rfc822.parsedate(reset_time)[:7])
+      reset = datetime.datetime(*email.util.parsedate(reset_time)[:7])
 
       # find the difference in time between now and the reset time + 1 hour
       delta = reset + datetime.timedelta(hours=1) - datetime.datetime.utcnow()
@@ -4516,7 +4507,7 @@ class Api(object):
 
     # Open and return the URL immediately if we're not going to cache
     if encoded_post_data or no_cache or not self._cache or not self._cache_timeout:
-      response = opener.open(url, encoded_post_data)
+      response = opener.open(url, encoded_post_data.encode("utf-8"))
       url_data = self._DecompressGzippedResponse(response)
       opener.close()
     else:
@@ -4535,8 +4526,8 @@ class Api(object):
           response = opener.open(url, encoded_post_data)
           url_data = self._DecompressGzippedResponse(response)
           self._cache.Set(key, url_data)
-        except urllib2.HTTPError, e:
-          print e
+        except urllib2.HTTPError as e:
+          print(e)
         opener.close()
       else:
         url_data = self._cache.Get(key)
@@ -4570,7 +4561,7 @@ class _FileCache(object):
       raise _FileCacheError('%s exists but is not a directory' % directory)
     temp_fd, temp_path = tempfile.mkstemp()
     temp_fp = os.fdopen(temp_fd, 'w')
-    temp_fp.write(data)
+    temp_fp.write(data.decode("utf-8"))
     temp_fp.close()
     if not path.startswith(self._root_directory):
       raise _FileCacheError('%s does not appear to live under %s' %
@@ -4602,7 +4593,7 @@ class _FileCache(object):
              os.getenv('USERNAME') or \
              os.getlogin() or \
              'nobody'
-    except (AttributeError, IOError, OSError), e:
+    except (AttributeError, IOError, OSError) as e:
       return 'nobody'
 
   def _GetTmpCachePath(self):
@@ -4622,11 +4613,7 @@ class _FileCache(object):
     self._root_directory = root_directory
 
   def _GetPath(self,key):
-    try:
-        hashed_key = md5(key).hexdigest()
-    except TypeError:
-        hashed_key = md5.new(key).hexdigest()
-
+    hashed_key = md5(key.encode("ascii")).hexdigest()
     return os.path.join(self._root_directory,
                         self._GetPrefix(hashed_key),
                         hashed_key)
